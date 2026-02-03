@@ -1,6 +1,6 @@
 <?php
 
-// Simple API Handler for Vercel with Supabase
+// API Handler untuk Vercel dengan Supabase
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 try {
-    // Database connection to Supabase
+    // Koneksi database ke Supabase
     $host = $_ENV['DB_HOST'] ?? 'aws-0-ap-southeast-1.pooler.supabase.com';
     $port = $_ENV['DB_PORT'] ?? '6543';
     $dbname = $_ENV['DB_DATABASE'] ?? 'postgres';
@@ -42,7 +42,7 @@ try {
         $errors = [];
         foreach ($fields as $field) {
             if (!isset($data[$field]) || empty($data[$field])) {
-                $errors[] = "$field is required";
+                $errors[] = "$field wajib diisi";
             }
         }
         return $errors;
@@ -52,7 +52,7 @@ try {
     if ($uri === '/api/test' || $uri === '/api/test.php') {
         echo json_encode([
             'status' => 'success',
-            'message' => 'API is working with Supabase!',
+            'message' => 'API berjalan dengan Supabase!',
             'method' => $method,
             'uri' => $uri,
             'timestamp' => date('Y-m-d H:i:s')
@@ -60,7 +60,7 @@ try {
         exit;
     }
     
-    // Get toko by URL (for katalog)
+    // Get toko by URL (untuk katalog)
     if (preg_match('/^\/api\/katalog\/(.+)$/', $uri, $matches)) {
         $urlToko = $matches[1];
         
@@ -116,7 +116,7 @@ try {
         
         if (!empty($errors)) {
             http_response_code(422);
-            echo json_encode(['success' => false, 'message' => 'Validation failed', 'errors' => $errors]);
+            echo json_encode(['success' => false, 'message' => 'Validasi gagal', 'errors' => $errors]);
             exit;
         }
         

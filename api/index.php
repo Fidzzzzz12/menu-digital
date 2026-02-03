@@ -1,34 +1,59 @@
 <?php
 
-// Vercel Serverless PHP Handler for Laravel
+// Simple Laravel API Handler for Vercel
+header('Content-Type: application/json');
+
 try {
-    // Set environment for serverless
-    $_ENV['APP_ENV'] = 'production';
-    $_ENV['LOG_CHANNEL'] = 'stderr';
-    $_ENV['CACHE_DRIVER'] = 'array';
-    $_ENV['SESSION_DRIVER'] = 'array';
-    $_ENV['VIEW_COMPILED_PATH'] = '/tmp/views';
+    // Basic Laravel bootstrap without full framework
+    require_once __DIR__ . '/../vendor/autoload.php';
     
-    // Create temp directories if needed
-    if (!is_dir('/tmp/views')) {
-        mkdir('/tmp/views', 0755, true);
+    // Simple routing
+    $uri = $_SERVER['REQUEST_URI'] ?? '/';
+    $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+    
+    // Remove query string
+    $uri = parse_url($uri, PHP_URL_PATH);
+    
+    // API Routes
+    if ($uri === '/api/test' || $uri === '/api/test.php') {
+        echo json_encode([
+            'status' => 'success',
+            'message' => 'Laravel API is working!',
+            'method' => $method,
+            'uri' => $uri,
+            'timestamp' => date('Y-m-d H:i:s')
+        ]);
+        exit;
     }
     
-    // Load Laravel
-    require_once __DIR__ . '/../public/index.php';
+    if ($uri === '/api/v1/provinces') {
+        // Mock provinces data
+        echo json_encode([
+            'success' => true,
+            'data' => [
+                ['province_id' => '1', 'province' => 'Bali'],
+                ['province_id' => '2', 'province' => 'Jawa Barat'],
+                ['province_id' => '3', 'province' => 'DKI Jakarta']
+            ]
+        ]);
+        exit;
+    }
+    
+    // Default response
+    echo json_encode([
+        'status' => 'success',
+        'message' => 'Laravel API Server',
+        'available_endpoints' => [
+            '/api/test',
+            '/api/v1/provinces'
+        ],
+        'timestamp' => date('Y-m-d H:i:s')
+    ]);
     
 } catch (Exception $e) {
     http_response_code(500);
-    header('Content-Type: application/json');
     echo json_encode([
-        'error' => 'Laravel Error',
-        'message' => $e->getMessage()
-    ]);
-} catch (Error $e) {
-    http_response_code(500);
-    header('Content-Type: application/json');
-    echo json_encode([
-        'error' => 'PHP Error', 
+        'error' => 'API Error',
         'message' => $e->getMessage()
     ]);
 }

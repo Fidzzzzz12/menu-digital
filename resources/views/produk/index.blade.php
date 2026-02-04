@@ -46,6 +46,11 @@
                         @if($product->variants && $product->variants->count() > 0)
                             <div class="product-variant-badge">{{ $product->variants->count() }} variant</div>
                         @endif
+                        @if($product->stok == 0)
+                            <div class="product-stock-badge stock-empty">Habis</div>
+                        @elseif($product->stok <= 5)
+                            <div class="product-stock-badge stock-low">Stok: {{ $product->stok }}</div>
+                        @endif
                     </div>
                     <div class="product-info">
                         <p class="product-category">{{ $product->kategori->nama_kategori ?? 'Tanpa Kategori' }}</p>
@@ -85,6 +90,9 @@
         </a>
         <a href="{{ route('pesanan.index') }}">
             <span class="material-symbols-rounded">local_mall</span>
+            @if(isset($pendingOrderCount) && $pendingOrderCount > 0)
+                <span class="nav-badge">{{ $pendingOrderCount }}</span>
+            @endif
         </a>
         <a href="{{ route('setting.index') }}">
             <span class="material-symbols-rounded">settings</span>
@@ -445,18 +453,6 @@
                 const variantRow = document.createElement('div');
                 variantRow.className = 'variant-row';
                 variantRow.innerHTML = `
-                    <div style="width: 100%; margin-bottom: 0.5rem;">
-                        <div class="form-group" style="gap: 0.25rem;">
-                            <label class="form-label" style="font-size: 0.75rem;">Gambar Varian (Opsional)</label>
-                            <input class="variant-image-input" name="variants[${variantCounterEdit}][gambar]" type="file" accept="image/*" style="display: none;"/>
-                            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                <button type="button" style="padding: 0.375rem 0.75rem; border: 1px solid #d1d5db; background: white; border-radius: 0.375rem; font-weight: 500; font-size: 0.75rem; color: #374151; cursor: pointer; white-space: nowrap; transition: all 0.3s;" onclick="this.closest('.variant-row').querySelector('.variant-image-input').click()">
-                                    Choose File
-                                </button>
-                                <span class="variant-file-name" style="font-size: 0.75rem; color: #6b7280; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${variant.gambar ? 'File uploaded' : 'No file chosen'}</span>
-                            </div>
-                        </div>
-                    </div>
                     <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
                         <div class="form-group" style="flex: 1;">
                             <label class="form-label">Nama Varian</label>
@@ -473,18 +469,6 @@
                     <input type="hidden" name="variants[${variantCounterEdit}][id]" value="${variant.id}"/>
                 `;
                 variantList.appendChild(variantRow);
-                
-                // Add file input handler
-                const fileInput = variantRow.querySelector('.variant-image-input');
-                const fileName = variantRow.querySelector('.variant-file-name');
-                
-                fileInput.addEventListener('change', (e) => {
-                    if (e.target.files.length > 0) {
-                        fileName.textContent = e.target.files[0].name;
-                    } else {
-                        fileName.textContent = 'No file chosen';
-                    }
-                });
                 
                 variantCounterEdit++;
             });
@@ -539,13 +523,13 @@
         });
     }
     
-    // Close modal when clicking overlay
-    document.querySelectorAll('.modal-overlay').forEach(modal => {
-        modal.addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal(this.id);
-            }
-        });
-    });
+    // Disable backdrop click - modal only closes with X button
+    // document.querySelectorAll('.modal-overlay').forEach(modal => {
+    //     modal.addEventListener('click', function(e) {
+    //         if (e.target === this) {
+    //             closeModal(this.id);
+    //         }
+    //     });
+    // });
 </script>
 @endpush

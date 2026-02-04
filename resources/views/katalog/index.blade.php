@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 </head>
 <body>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+    
     <div class="container">
         <!-- ===================== HALAMAN KATALOG ===================== -->
         <div id="catalog-page" class="page active">
@@ -38,7 +41,6 @@
 
             <div class="store-info">
                 <h1 class="store-name">{{ $toko->nama_toko }}</h1>
-                <p class="store-description">{{ $toko->deskripsi ?? 'Selamat datang di toko kami' }}</p>
                 <button class="info-button" onclick="showStoreInfo()">
                     <i class="fas fa-info-circle"></i> Information
                 </button>
@@ -68,12 +70,16 @@
                         <h3>{{ $product->nama_produk }}</h3>
                         <p class="product-desc">{{ $product->deskripsi ?? 'Produk berkualitas' }}</p>
                         <p class="price" data-price="{{ $product->harga }}">Rp{{ number_format($product->harga, 0, ',', '.') }}</p>
-                        <p class="stock">Stok: {{ $product->stok }}</p>
+                        <p class="stock" data-stock="{{ $product->stok }}">Stok: {{ $product->stok }}</p>
                         
-                        @if($product->variants && $product->variants->count() > 0)
-                            <button class="add-to-cart" onclick="showVariantModal({{ $product->id }})">Pilih Varian</button>
+                        @if($product->stok > 0)
+                            @if($product->variants && $product->variants->count() > 0)
+                                <button class="add-to-cart" onclick="showVariantModal({{ $product->id }})">Pilih Varian</button>
+                            @else
+                                <button class="add-to-cart" onclick="addToCart({{ $product->id }}, '{{ $product->nama_produk }}', {{ $product->harga }}, null)">Tambahkan</button>
+                            @endif
                         @else
-                            <button class="add-to-cart" onclick="addToCart({{ $product->id }}, '{{ $product->nama_produk }}', {{ $product->harga }}, null)">Tambahkan</button>
+                            <button class="add-to-cart" disabled style="background: #9ca3af; cursor: not-allowed;">Stok Habis</button>
                         @endif
                     </div>
                 @empty
@@ -337,20 +343,104 @@
                     </div>
                 </div>
                 @endif
-                @if($toko->deskripsi)
-                <div class="info-item">
-                    <div class="info-icon"><i class="fas fa-info-circle"></i></div>
-                    <div class="info-content">
-                        <div class="info-label">Deskripsi</div>
-                        <div class="info-value">{{ $toko->deskripsi }}</div>
-                    </div>
-                </div>
-                @endif
             </div>
         </div>
     </div>
 
     <style>
+        /* Modern Toast Notification System */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 400px;
+        }
+        
+        .toast {
+            background: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 320px;
+            animation: slideInRight 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .toast::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+        }
+        
+        .toast.success::before { background: linear-gradient(180deg, #10b981 0%, #059669 100%); }
+        .toast.error::before { background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%); }
+        .toast.warning::before { background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%); }
+        .toast.info::before { background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); }
+        
+        .toast-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+        
+        .toast.success .toast-icon { background: #d1fae5; color: #059669; }
+        .toast.error .toast-icon { background: #fee2e2; color: #dc2626; }
+        .toast.warning .toast-icon { background: #fef3c7; color: #d97706; }
+        .toast.info .toast-icon { background: #dbeafe; color: #2563eb; }
+        
+        .toast-content { flex: 1; }
+        .toast-title { font-weight: 600; font-size: 14px; color: #1f2937; margin-bottom: 2px; }
+        .toast-message { font-size: 13px; color: #6b7280; line-height: 1.4; }
+        
+        .toast-close {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #f3f4f6;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        
+        .toast-close:hover { background: #e5e7eb; color: #6b7280; }
+        .toast.removing { animation: slideOutRight 0.3s ease-in forwards; }
+        
+        @keyframes slideInRight {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes slideOutRight {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(400px); opacity: 0; }
+        }
+        
+        @media (max-width: 480px) {
+            .toast-container { top: 10px; right: 10px; left: 10px; max-width: none; }
+            .toast { min-width: auto; width: 100%; }
+        }
+        
         /* Ongkir styles */
         .check-ongkir-btn {
             width: 100%;
@@ -397,11 +487,65 @@
     </style>
 
     <script>
+        // ============ TOAST NOTIFICATION SYSTEM ============
+        function showToast(message, type = 'success', title = '') {
+            console.log('showToast called:', message, type); // Debug
+            const container = document.getElementById('toastContainer');
+            console.log('Container found:', container); // Debug
+            
+            if (!container) {
+                console.error('Toast container not found!');
+                return;
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            
+            const icons = {
+                success: '✓',
+                error: '✕',
+                warning: '⚠',
+                info: 'ℹ'
+            };
+            
+            const titles = {
+                success: title || 'Berhasil!',
+                error: title || 'Gagal!',
+                warning: title || 'Perhatian!',
+                info: title || 'Informasi'
+            };
+            
+            toast.innerHTML = `
+                <div class="toast-icon">${icons[type] || icons.info}</div>
+                <div class="toast-content">
+                    <div class="toast-title">${titles[type]}</div>
+                    <div class="toast-message">${message}</div>
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">✕</button>
+            `;
+            
+            container.appendChild(toast);
+            console.log('Toast added to container'); // Debug
+            
+            setTimeout(() => {
+                toast.classList.add('removing');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+        
+        // Test toast on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, testing toast...');
+            setTimeout(() => {
+                showToast('Selamat datang di ' + tokoData.nama_toko, 'info');
+            }, 500);
+        });
+        
+        // ============ DATA ============
         const products = @json($products);
         const tokoData = @json($toko);
-        // originDistrictId: ID Kecamatan toko Anda (GANTI!)
-        // Cara cari: buka /api/districts?city_id=XX → cari kecamatan toko Anda → copy id-nya
         const originDistrictId = {{ $originDistrictId ?? 1391 }};
+
 
         let cart = [];
         let currentVariantProduct = null;
@@ -545,7 +689,10 @@
 
         // ============ PAGE NAVIGATION ============
         function goToCheckout() {
-            if (cart.length === 0) { alert('Keranjang belanja kosong!'); return; }
+            if (cart.length === 0) { 
+                showToast('Keranjang belanja kosong!', 'warning'); 
+                return; 
+            }
             document.getElementById('catalog-page').classList.remove('active');
             document.getElementById('order-page').classList.add('active');
             saveCurrentPage('order');
@@ -669,8 +816,8 @@
             const weight = document.getElementById('weight').value;
             const courier = document.getElementById('courier').value;
 
-            if (!districtId) { alert('Mohon pilih kecamatan tujuan'); return; }
-            if (!courier) { alert('Mohon pilih kurir'); return; }
+            if (!districtId) { showToast('Mohon pilih kecamatan tujuan', 'warning'); return; }
+            if (!courier) { showToast('Mohon pilih kurir', 'warning'); return; }
 
             document.getElementById('loading').style.display = 'block';
             document.getElementById('shippingResults').style.display = 'none';
@@ -698,72 +845,74 @@
                 if (data.success && data.data && data.data.length > 0) {
                     displayShippingOptions(data.data);
                 } else {
-                    alert('Tidak ada layanan pengiriman tersedia untuk tujuan ini.');
+                    showToast('Tidak ada layanan pengiriman tersedia untuk tujuan ini.', 'warning');
                 }
             })
             .catch(e => {
                 console.error('Check ongkir error:', e);
                 document.getElementById('loading').style.display = 'none';
                 this.disabled = false;
-                alert('Terjadi kesalahan saat mengecek ongkir.');
+                showToast('Terjadi kesalahan saat mengecek ongkir.', 'error');
             });
         });
 
-        // ---- TAMPILKAN HASIL ONGKIR ----
-        // V2 response: data is array of courier objects, each has .costs[]
-        function displayShippingOptions(couriers) {
-            const container = document.getElementById('shippingOptions');
-            container.innerHTML = '';
+  // ---- TAMPILKAN HASIL ONGKIR (RAJAONGKIR V2 - FLAT RESPONSE) ----
+function displayShippingOptions(services) {
+    const container = document.getElementById('shippingOptions');
+    container.innerHTML = '';
 
-            couriers.forEach(courier => {
-                if (!courier.costs) return;
-                courier.costs.forEach((cost, idx) => {
-                    // V2: cost.cost is already the value (number), or could be array
-                    const price = Array.isArray(cost.cost) ? cost.cost[0].value : cost.cost;
-                    const etd   = Array.isArray(cost.cost) ? cost.cost[0].etd   : (cost.etd || '-');
-                    const uniqueId = `ship-${courier.code || courier.name}-${idx}`;
+    services.forEach((item, idx) => {
+        const price    = item.cost;
+        const etd      = item.etd || '-';
+        const uniqueId = `ship-${item.code}-${item.service}-${idx}`;
 
-                    const card = document.createElement('div');
-                    card.className = 'shipping-option-card';
-                    card.innerHTML = `
-                        <input type="radio" name="shipping" id="${uniqueId}" value="${price}"
-                               data-courier="${courier.name}" data-service="${cost.service}" data-etd="${etd}">
-                        <label for="${uniqueId}" class="opt-info" style="cursor:pointer;margin:0;">
-                            <div class="opt-name">${courier.name} – ${cost.service}</div>
-                            <div class="opt-desc">${cost.description || ''}</div>
-                            <span class="opt-etd">Estimasi: ${etd} hari</span>
-                        </label>
-                        <div class="opt-price">Rp ${Number(price).toLocaleString('id-ID')}</div>`;
+        const card = document.createElement('div');
+        card.className = 'shipping-option-card';
+        card.innerHTML = `
+            <input type="radio" name="shipping" id="${uniqueId}" value="${price}"
+                   data-courier="${item.name}"
+                   data-service="${item.service}"
+                   data-etd="${etd}">
+            <label for="${uniqueId}" class="opt-info" style="cursor:pointer;margin:0;">
+                <div class="opt-name">${item.name} – ${item.service}</div>
+                <span class="opt-etd">Estimasi: ${etd}</span>
+            </label>
+            <div class="opt-price">Rp ${Number(price).toLocaleString('id-ID')}</div>
+        `;
 
-                    // click anywhere on card selects radio
-                    card.addEventListener('click', function (e) {
-                        const radio = this.querySelector('input[type="radio"]');
-                        if (!radio.checked) { radio.checked = true; radio.dispatchEvent(new Event('change')); }
-                    });
+        // klik kartu = pilih radio
+        card.addEventListener('click', function () {
+            const radio = this.querySelector('input[type="radio"]');
+            radio.checked = true;
+            radio.dispatchEvent(new Event('change'));
+        });
 
-                    container.appendChild(card);
-                });
-            });
+        container.appendChild(card);
+    });
 
-            document.getElementById('shippingResults').style.display = 'block';
+    document.getElementById('shippingResults').style.display = 'block';
 
-            // radio change → update total
-            document.querySelectorAll('input[name="shipping"]').forEach(radio => {
-                radio.addEventListener('change', function () {
-                    document.querySelectorAll('.shipping-option-card').forEach(c => c.classList.remove('selected'));
-                    this.closest('.shipping-option-card').classList.add('selected');
+    document.querySelectorAll('input[name="shipping"]').forEach(radio => {
+        radio.addEventListener('change', function () {
+            document
+                .querySelectorAll('.shipping-option-card')
+                .forEach(c => c.classList.remove('selected'));
 
-                    shippingCost = Number(this.value);
-                    selectedShipping = {
-                        courier: this.dataset.courier,
-                        service: this.dataset.service,
-                        cost: shippingCost,
-                        etd: this.dataset.etd
-                    };
-                    updateOrderPage();
-                });
-            });
-        }
+            this.closest('.shipping-option-card').classList.add('selected');
+
+            shippingCost = Number(this.value);
+            selectedShipping = {
+                courier: this.dataset.courier,
+                service: this.dataset.service,
+                cost: shippingCost,
+                etd: this.dataset.etd
+            };
+
+            updateOrderPage();
+        });
+    });
+}
+
 
         // ============ SEND ORDER ============
         function sendOrder() {
@@ -773,10 +922,10 @@
             const selectedMethodElement = document.querySelector('input[name="metode_pengiriman"]:checked');
 
             // Basic validation
-            if (!nama) { alert('Mohon isi nama lengkap'); return; }
-            if (!whatsapp) { alert('Mohon isi nomor WhatsApp'); return; }
-            if (!selectedMethodElement) { alert('Mohon pilih metode pengiriman'); return; }
-            if (cart.length === 0) { alert('Keranjang belanja kosong!'); return; }
+            if (!nama) { showToast('Mohon isi nama lengkap', 'warning'); return; }
+            if (!whatsapp) { showToast('Mohon isi nomor WhatsApp', 'warning'); return; }
+            if (!selectedMethodElement) { showToast('Mohon pilih metode pengiriman', 'warning'); return; }
+            if (cart.length === 0) { showToast('Keranjang belanja kosong!', 'warning'); return; }
 
             const metodePengiriman = selectedMethodElement.value;
 
@@ -791,9 +940,9 @@
                 city = document.getElementById('city');
                 district = document.getElementById('district');
 
-                if (!alamat) { alert('Mohon isi alamat pengiriman'); return; }
-                if (!province.value || !city.value || !district.value) { alert('Mohon lengkapi provinsi, kota, dan kecamatan'); return; }
-                if (!selectedShipping) { alert('Mohon pilih layanan pengiriman terlebih dahulu'); return; }
+                if (!alamat) { showToast('Mohon isi alamat pengiriman', 'warning'); return; }
+                if (!province.value || !city.value || !district.value) { showToast('Mohon lengkapi provinsi, kota, dan kecamatan', 'warning'); return; }
+                if (!selectedShipping) { showToast('Mohon pilih layanan pengiriman terlebih dahulu', 'warning'); return; }
 
                 fullAddress = `${alamat}, ${district.options[district.selectedIndex].text}, ${city.options[city.selectedIndex].text}, ${province.options[province.selectedIndex].text}`;
             } else {
@@ -828,27 +977,42 @@
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    let msg = `*PESANAN BARU*\n\n🏪 *${tokoData.nama_toko}*\n━━━━━━━━━━━━━━━━━\n\n`;
-                    msg += `📋 *Informasi Pesanan*\nID: ${orderId}\nTanggal: ${document.getElementById('order-date').textContent}\n\n`;
-                    msg += `👤 *Data Pemesan*\nNama: ${nama}\nWhatsApp: ${whatsapp}\n`;
+                    // Custom Template - Clean & Professional with Bold
+                    const orderDate = new Date();
+                    const dateStr = orderDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                    const timeStr = orderDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    
+                    let msg = `*PESANAN BARU – ${tokoData.nama_toko.toUpperCase()}*\n\n`;
+                    msg += `Order   : *${orderId}*\n`;
+                    msg += `Tanggal : ${dateStr} • ${timeStr} WIB\n\n`;
+                    
+                    msg += `*PELANGGAN*\n`;
+                    msg += `Nama     : *${nama}*\n`;
+                    msg += `WhatsApp : ${whatsapp}\n`;
+                    msg += `Metode   : *${metodePengiriman === 'dikirim' ? 'Dikirim' : 'Ambil di Toko'}*\n\n`;
                     
                     if (metodePengiriman === 'dikirim') {
-                        msg += `Alamat: ${fullAddress}\n\n`;
-                    } else {
-                        msg += `Metode: Ambil sendiri di toko\n\n`;
+                        msg += `*PENGIRIMAN*\n`;
+                        msg += `Kurir    : *${selectedShipping.courier.toUpperCase()}*\n`;
+                        msg += `Alamat   : ${fullAddress}\n`;
+                        msg += `Ongkir   : Rp${shippingCost.toLocaleString('id-ID')}\n\n`;
                     }
                     
-                    msg += `📦 *Detail Pesanan*\n`;
-                    cart.forEach((item, i) => { msg += `${i+1}. ${item.name}${item.variant?' ('+item.variant+')':''}\n   ${item.quantity}x Rp${item.price.toLocaleString('id-ID')} = Rp${(item.price*item.quantity).toLocaleString('id-ID')}\n`; });
+                    msg += `*PESANAN*\n`;
+                    cart.forEach((item, i) => {
+                        const variant = item.variant ? ` (${item.variant})` : '';
+                        const namePadded = (item.name + variant).padEnd(20);
+                        msg += `${i+1}. ${namePadded} x${item.quantity}  Rp${(item.price*item.quantity).toLocaleString('id-ID')}\n`;
+                    });
                     
-                    if (metodePengiriman === 'dikirim') {
-                        msg += `\n🚚 *Pengiriman*\nKurir: ${selectedShipping.courier} - ${selectedShipping.service}\nEstimasi: ${selectedShipping.etd} hari\nOngkir: Rp${shippingCost.toLocaleString('id-ID')}\n\n`;
-                    } else {
-                        msg += `\n🏪 *Pengambilan*\nAmbil sendiri di toko\nOngkir: Rp0\n\n`;
+                    msg += `\n*RINGKASAN*\n`;
+                    msg += `Subtotal : Rp${subtotal.toLocaleString('id-ID')}\n`;
+                    msg += `Ongkir   : Rp${shippingCost.toLocaleString('id-ID')}\n`;
+                    msg += `*TOTAL    : Rp${grandTotal.toLocaleString('id-ID')}*\n`;
+                    
+                    if (catatan) {
+                        msg += `\n*Catatan:*\n${catatan}`;
                     }
-                    
-                    msg += `━━━━━━━━━━━━━━━━━\n💰 Subtotal: Rp${subtotal.toLocaleString('id-ID')}\n🚚 Ongkir: Rp${shippingCost.toLocaleString('id-ID')}\n*TOTAL: Rp${grandTotal.toLocaleString('id-ID')}*`;
-                    if (catatan) msg += `\n\n📝 *Catatan:* ${catatan}`;
 
                     let phone = tokoData.nomor_telepon.replace(/\D/g, '');
                     if (phone.startsWith('0')) phone = '62' + phone.substring(1);
@@ -858,13 +1022,13 @@
                     localStorage.removeItem('cart_' + tokoData.url_toko);
                     localStorage.removeItem('currentPage_' + tokoData.url_toko);
                     updateCartDisplay();
-                    alert('Pesanan berhasil dikirim ke WhatsApp!');
+                    showToast('Pesanan berhasil dikirim ke WhatsApp!', 'success');
                     backToCatalog();
                 } else {
-                    alert('Gagal menyimpan pesanan: ' + (data.message || 'Coba lagi'));
+                    showToast('Gagal menyimpan pesanan: ' + (data.message || 'Coba lagi'), 'error');
                 }
             })
-            .catch(e => { console.error(e); alert('Kesalahan koneksi. Coba lagi.'); });
+            .catch(e => { console.error(e); showToast('Kesalahan koneksi. Coba lagi.', 'error'); });
         }
 
         // ============ STORE INFO MODAL ============

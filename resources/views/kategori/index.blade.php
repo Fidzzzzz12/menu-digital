@@ -65,6 +65,9 @@
         </a>
         <a href="{{ route('pesanan.index') }}">
             <span class="material-symbols-rounded">local_mall</span>
+            @if(isset($pendingOrderCount) && $pendingOrderCount > 0)
+                <span class="nav-badge">{{ $pendingOrderCount }}</span>
+            @endif
         </a>
         <a href="{{ route('setting.index') }}">
             <span class="material-symbols-rounded">settings</span>
@@ -189,13 +192,13 @@
         });
     }
     
-    // Close modal when clicking overlay
-    document.querySelectorAll('.modal-overlay').forEach(modal => {
-        modal.addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal(this.id);
-            }
-        });
-    });
+    // Disable backdrop click - modal only closes with X button
+    // document.querySelectorAll('.modal-overlay').forEach(modal => {
+    //     modal.addEventListener('click', function(e) {
+    //         if (e.target === this) {
+    //             closeModal(this.id);
+    //         }
+    //     });
+    // });
 </script>
 @endpush

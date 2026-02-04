@@ -37,6 +37,14 @@ class DashboardController extends Controller
         $month = (int) $request->input('month', now()->month);
         $year = (int) $request->input('year', now()->year);
         
+        // Validasi month dan year
+        if ($month < 1 || $month > 12) {
+            $month = now()->month;
+        }
+        if ($year < 2024 || $year > now()->year) {
+            $year = now()->year;
+        }
+        
         // Get daily revenue from pesanan table
         $chartData = Pesanan::where('user_id', $user->id)
             ->where('status', 'selesai')

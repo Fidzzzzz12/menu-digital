@@ -5,7 +5,7 @@
 @push('styles')
 <link rel="stylesheet" href="{{ asset('css/pesanan.css') }}">
 <style>
-    /* Minimalist Stats Bar */
+    /* Clickable Filter Tabs */
     .stats-bar {
         background: white;
         padding: 0.75rem 1rem;
@@ -21,15 +21,59 @@
         gap: 0.5rem;
     }
     
+    /* Mobile: Center last two items */
+    @media (max-width: 768px) {
+        .stats-bar {
+            justify-content: center;
+        }
+        
+        .stat-item:nth-child(4),
+        .stat-item:nth-child(5) {
+            order: 10;
+        }
+        
+        .stat-item:nth-child(1),
+        .stat-item:nth-child(2),
+        .stat-item:nth-child(3) {
+            flex: 1 1 auto;
+            min-width: calc(33.333% - 0.5rem);
+        }
+        
+        .stat-item:nth-child(4),
+        .stat-item:nth-child(5) {
+            flex: 0 0 auto;
+            margin-top: 0.25rem;
+        }
+    }
+    
     .stat-item {
         display: flex;
         align-items: center;
         gap: 0.25rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.375rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+    }
+    
+    .stat-item:hover {
+        background: #f1f5f9;
+        transform: translateY(-1px);
+    }
+    
+    .stat-item.active {
+        background: #dbeafe;
+        border-color: #3b82f6;
     }
     
     .stat-item strong {
         color: #0f172a;
         font-weight: 600;
+    }
+    
+    .stat-item.active strong {
+        color: #1e40af;
     }
     
     /* Minimalist Order Card */
@@ -209,21 +253,25 @@
         </div>
     </header>
     
-    <!-- Minimalist Statistics Bar -->
+    <!-- Clickable Filter Tabs -->
     <div class="stats-bar">
-        <div class="stat-item">
+        <div class="stat-item active" data-status="all" onclick="filterByStatus('all')">
+            <span>Semua:</span>
+            <strong>{{ $pesanan->count() }}</strong>
+        </div>
+        <div class="stat-item" data-status="pending" onclick="filterByStatus('pending')">
             <span>Pending:</span>
             <strong>{{ $pendingCount }}</strong>
         </div>
-        <div class="stat-item">
+        <div class="stat-item" data-status="dikonfirmasi" onclick="filterByStatus('dikonfirmasi')">
             <span>Dikonfirmasi:</span>
             <strong>{{ $dikonfirmasiCount }}</strong>
         </div>
-        <div class="stat-item">
+        <div class="stat-item" data-status="selesai" onclick="filterByStatus('selesai')">
             <span>Selesai:</span>
             <strong>{{ $selesaiCount }}</strong>
         </div>
-        <div class="stat-item">
+        <div class="stat-item" data-status="dibatalkan" onclick="filterByStatus('dibatalkan')">
             <span>Dibatalkan:</span>
             <strong>{{ $dibatalkanCount }}</strong>
         </div>
@@ -237,7 +285,7 @@
         @endif
         
         @forelse($pesanan as $order)
-            <div class="order-card-minimal" data-order="{{ strtolower($order->order_id) }} {{ strtolower($order->nama_lengkap) }}">
+            <div class="order-card-minimal" data-status="{{ $order->status }}" data-order="{{ strtolower($order->order_id) }} {{ strtolower($order->nama_lengkap) }}">
                 <!-- Order Header -->
                 <div class="order-header">
                     <span class="order-id">{{ $order->order_id }}</span>
@@ -291,9 +339,9 @@
                                 Konfirmasi
                             </button>
                         </form>
-                        <form action="{{ route('pesanan.batalkan', $order->id) }}" method="POST" style="flex: 1;">
+                        <form action="{{ route('pesanan.batalkan', $order->id) }}" method="POST" style="flex: 1;" onsubmit="return handleCancelOrder(event, this)">
                             @csrf
-                            <button type="submit" class="btn-minimal btn-batalkan-minimal" style="width: 100%;" onclick="return confirm('Yakin ingin membatalkan pesanan ini?')">
+                            <button type="submit" class="btn-minimal btn-batalkan-minimal" style="width: 100%;">
                                 Batalkan
                             </button>
                         </form>
@@ -344,6 +392,9 @@
         </a>
         <a href="{{ route('pesanan.index') }}" class="nav-active">
             <span class="material-symbols-rounded">local_mall</span>
+            @if(isset($pendingOrderCount) && $pendingOrderCount > 0)
+                <span class="nav-badge">{{ $pendingOrderCount }}</span>
+            @endif
         </a>
         <a href="{{ route('setting.index') }}">
             <span class="material-symbols-rounded">settings</span>
@@ -354,6 +405,16 @@
 
 @push('scripts')
 <script>
+    function handleCancelOrder(event, form) {
+        event.preventDefault();
+        showConfirm(
+            'Pesanan yang dibatalkan tidak dapat dikembalikan. Apakah Anda yakin?',
+            'Batalkan Pesanan',
+            () => form.submit()
+        );
+        return false;
+    }
+    
     function searchOrders(query) {
         const cards = document.querySelectorAll('.order-card-minimal');
         const searchTerm = query.toLowerCase();
@@ -368,6 +429,50 @@
         });
     }
     
+    function filterByStatus(status) {
+        const cards = document.querySelectorAll('.order-card-minimal');
+        const statItems = document.querySelectorAll('.stat-item');
+        const searchInput = document.getElementById('searchInput');
+        let firstVisibleCard = null;
+        
+        // Clear search input when filtering
+        searchInput.value = '';
+        
+        // Update active state on tabs
+        statItems.forEach(item => {
+            if (item.getAttribute('data-status') === status) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+        
+        // Filter cards
+        cards.forEach(card => {
+            const cardStatus = card.getAttribute('data-status');
+            
+            if (status === 'all' || cardStatus === status) {
+                card.style.display = '';
+                if (!firstVisibleCard) {
+                    firstVisibleCard = card;
+                }
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        
+        // Smooth scroll to first visible card
+        if (firstVisibleCard) {
+            setTimeout(() => {
+                firstVisibleCard.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start',
+                    inline: 'nearest'
+                });
+            }, 100);
+        }
+    }
+    
     function viewOrder(phone, orderNumber, total, items) {
         // Format phone number (remove leading 0 and add 62)
         let formattedPhone = phone.replace(/\D/g, '');
@@ -375,21 +480,8 @@
             formattedPhone = '62' + formattedPhone.substring(1);
         }
         
-        // Create WhatsApp message with details
-        let message = `Detail Pesanan\n\n`;
-        message += `ID Pesanan: *${orderNumber}*\n\n`;
-        message += `*Detail Item:*\n`;
-        
-        items.forEach((item, index) => {
-            const variant = item.variant ? ` (${item.variant})` : '';
-            message += `${index + 1}. ${item.nama_produk}${variant}\n`;
-            message += `   ${item.quantity}x Rp${item.harga.toLocaleString('id-ID')} = Rp${item.subtotal.toLocaleString('id-ID')}\n`;
-        });
-        
-        message += `\n*Total: Rp${total.toLocaleString('id-ID')}*`;
-        
-        // Open WhatsApp
-        window.open(`https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`, '_blank');
+        // Open WhatsApp without pre-filled message
+        window.open(`https://wa.me/${formattedPhone}`, '_blank');
     }
 </script>
 @endpush

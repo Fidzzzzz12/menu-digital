@@ -151,6 +151,9 @@
         </a>
         <a href="{{ route('pesanan.index') }}">
             <span class="material-symbols-rounded">local_mall</span>
+            @if(isset($pendingOrderCount) && $pendingOrderCount > 0)
+                <span class="nav-badge">{{ $pendingOrderCount }}</span>
+            @endif
         </a>
         <a href="{{ route('setting.index') }}" class="nav-active">
             <span class="material-symbols-rounded">settings</span>
@@ -265,10 +268,10 @@
         shareUrl.setSelectionRange(0, 99999);
         
         navigator.clipboard.writeText(shareUrl.value).then(() => {
-            alert('Link berhasil disalin!');
+            showToast('Link berhasil disalin!', 'success');
         }).catch(() => {
             document.execCommand('copy');
-            alert('Link berhasil disalin!');
+            showToast('Link berhasil disalin!', 'success');
         });
     }
     
@@ -279,14 +282,14 @@
         window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
     }
     
-    // Close modal when clicking overlay
-    document.querySelectorAll('.modal-overlay').forEach(modal => {
-        modal.addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeModal(this.id);
-            }
-        });
-    });
+    // Disable backdrop click - modal only closes with X button
+    // document.querySelectorAll('.modal-overlay').forEach(modal => {
+    //     modal.addEventListener('click', function(e) {
+    //         if (e.target === this) {
+    //             closeModal(this.id);
+    //         }
+    //     });
+    // });
     
     // Update store name display when typing
     const namaTokoInput = document.getElementById('namaToko');

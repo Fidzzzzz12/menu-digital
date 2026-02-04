@@ -82,41 +82,54 @@ class RajaOngkirService
     }
 
     /**
-     * Calculate cost.
-     * Selalu log request + response supaya gampang debug.
+     * Calculate cost dengan CACHE 24 jam.
+     * 
+     * Cache Key Format: ongkir_{origin}_{destination}_{weight}_{courier}
+     * Contoh: ongkir_6731_6740_500_jne
+     * 
+     * Durasi: 86400 detik = 24 jam
+     * Setelah 24 jam, cache otomatis dihapus dan request berikutnya akan tanya API lagi.
      */
     public function getCost($origin, $destination, $weight, $courier)
     {
-        $payload = [
-            'origin'      => $origin,
-            'destination' => $destination,
-            'weight'      => $weight,
-            'courier'     => $courier,
-            'price'       => 'lowest',
-        ];
+        // Buat cache key unik berdasarkan kombinasi parameter
+        $cacheKey = "ongkir_{$origin}_{$destination}_{$weight}_{$courier}";
 
-        Log::info('RajaOngkir getCost REQUEST', $payload);
+        // Cek apakah sudah ada di cache
+        return Cache::remember($cacheKey, 86400, function () use ($origin, $destination, $weight, $courier) {
+            $payload = [
+                'origin'      => $origin,
+                'destination' => $destination,
+                'weight'      => $weight,
+                'courier'     => $courier,
+                'price'       => 'lowest',
+            ];
 
-        try {
-            $response = Http::withHeaders([
-                'Accept' => 'application/json',
-                'key'    => $this->apiKey,
-            ])->post("{$this->baseUrl}/calculate/district/domestic-cost", $payload);
+            Log::info('RajaOngkir getCost REQUEST (calling API - not from cache)', $payload);
 
-            // Log full response — apapun status-nya
-            Log::info('RajaOngkir getCost RESPONSE', [
-                'status' => $response->status(),
-                'body'   => $response->body(),
-            ]);
+            try {
+                // PENTING: API V2 butuh Content-Type: application/x-www-form-urlencoded
+                $response = Http::asForm()->withHeaders([
+                    'Accept' => 'application/json',
+                    'key'    => $this->apiKey,
+                ])->post("{$this->baseUrl}/calculate/district/domestic-cost", $payload);
 
-            if ($response->successful()) {
-                return $response->json()['data'] ?? [];
+                // Log full response
+                Log::info('RajaOngkir getCost RESPONSE', [
+                    'status' => $response->status(),
+                    'body'   => $response->body(),
+                ]);
+
+                if ($response->successful()) {
+                    return $response->json()['data'] ?? [];
+                }
+
+                // Jangan cache kalau gagal - return [] dan jangan disimpan
+                return [];
+            } catch (\Exception $e) {
+                Log::error('RajaOngkir getCost EXCEPTION: ' . $e->getMessage());
+                return [];
             }
-
-            return [];
-        } catch (\Exception $e) {
-            Log::error('RajaOngkir getCost EXCEPTION: ' . $e->getMessage());
-            return [];
-        }
+        });
     }
 }

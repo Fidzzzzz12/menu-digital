@@ -59,9 +59,26 @@
             <div class="stats-header">
                 <h2 class="stats-title">Statistik</h2>
                 <div class="month-filter">
+                    <select class="month-select" id="yearFilter" style="margin-right: 10px;">
+                        @php
+                            $currentYear = request('year', now()->year);
+                            $startYear = 2024; // Tahun mulai aplikasi
+                            $endYear = now()->year;
+                        @endphp
+                        @for($y = $endYear; $y >= $startYear; $y--)
+                            <option value="{{ $y }}" {{ $y == $currentYear ? 'selected' : '' }}>{{ $y }}</option>
+                        @endfor
+                    </select>
+                    
                     <select class="month-select" id="monthFilter">
-                        @foreach(['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'] as $index => $month)
-                            <option value="{{ $index }}" {{ $index == now()->month - 1 ? 'selected' : '' }}>{{ $month }}</option>
+                        @foreach(['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'] as $index => $monthName)
+                            @php
+                                $monthValue = $index + 1; // Bulan 1-12
+                                $currentMonth = request('month', now()->month);
+                            @endphp
+                            <option value="{{ $monthValue }}" {{ $monthValue == $currentMonth ? 'selected' : '' }}>
+                                {{ $monthName }}
+                            </option>
                         @endforeach
                     </select>
                 </div>
@@ -122,6 +139,9 @@
         </a>
         <a href="{{ route('pesanan.index') }}">
             <span class="material-symbols-rounded">local_mall</span>
+            @if(isset($pendingOrderCount) && $pendingOrderCount > 0)
+                <span class="nav-badge">{{ $pendingOrderCount }}</span>
+            @endif
         </a>
         <a href="{{ route('setting.index') }}">
             <span class="material-symbols-rounded">settings</span>
@@ -182,9 +202,18 @@
         document.body.style.overflow = '';
     }
     
+    // Year filter
+    document.getElementById('yearFilter').addEventListener('change', function() {
+        const selectedYear = this.value;
+        const selectedMonth = document.getElementById('monthFilter').value;
+        window.location.href = `{{ route('dashboard') }}?month=${selectedMonth}&year=${selectedYear}`;
+    });
+    
     // Month filter
     document.getElementById('monthFilter').addEventListener('change', function() {
-        window.location.href = `{{ route('dashboard') }}?month=${parseInt(this.value) + 1}`;
+        const selectedMonth = this.value;
+        const selectedYear = document.getElementById('yearFilter').value;
+        window.location.href = `{{ route('dashboard') }}?month=${selectedMonth}&year=${selectedYear}`;
     });
     
     // Generate chart

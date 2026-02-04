@@ -34,7 +34,22 @@ class PesananController extends Controller
     
     public function konfirmasi($id)
     {
-        $pesanan = Pesanan::where('user_id', Auth::id())->findOrFail($id);
+        $pesanan = Pesanan::where('user_id', Auth::id())->with('items.produk')->findOrFail($id);
+        
+        // Validasi stok sebelum konfirmasi
+        foreach ($pesanan->items as $item) {
+            $produk = $item->produk;
+            if ($produk->stok < $item->quantity) {
+                return back()->with('error', "Stok {$produk->nama_produk} tidak mencukupi! Stok tersedia: {$produk->stok}, dibutuhkan: {$item->quantity}");
+            }
+        }
+        
+        // Kurangi stok produk
+        foreach ($pesanan->items as $item) {
+            $produk = $item->produk;
+            $produk->decrement('stok', $item->quantity);
+        }
+        
         $pesanan->update(['status' => 'dikonfirmasi']);
         
         // Generate WhatsApp message
@@ -46,7 +61,16 @@ class PesananController extends Controller
     
     public function batalkan($id)
     {
-        $pesanan = Pesanan::where('user_id', Auth::id())->findOrFail($id);
+        $pesanan = Pesanan::where('user_id', Auth::id())->with('items.produk')->findOrFail($id);
+        
+        // Kembalikan stok jika pesanan sudah dikonfirmasi
+        if ($pesanan->status === 'dikonfirmasi') {
+            foreach ($pesanan->items as $item) {
+                $produk = $item->produk;
+                $produk->increment('stok', $item->quantity);
+            }
+        }
+        
         $pesanan->update(['status' => 'dibatalkan']);
         
         // Generate WhatsApp message
@@ -81,21 +105,27 @@ class PesananController extends Controller
         $user = Auth::user();
         $toko = $user->toko;
         
-        $message = "Halo {$pesanan->nama_lengkap}, terima kasih atas pesanan Anda!\n\n";
-        $message .= "ID Pesanan: *{$pesanan->order_id}*\n\n";
-        $message .= "*Detail Pesanan:*\n";
+        $message = "Halo kak 👋\n\n";
+        $message .= "Pesanan kakak sudah kami terima dan *dikonfirmasi*.\n\n";
+        $message .= "ID Order : *{$pesanan->order_id}*\n";
+        $message .= "Total    : *Rp" . number_format($pesanan->total_harga, 0, ',', '.') . "*\n";
         
-        foreach ($pesanan->items as $index => $item) {
-            $no = $index + 1;
-            $variant = $item->variant ? " ({$item->variant})" : '';
-            $message .= "{$no}. {$item->nama_produk}{$variant}\n";
-            $message .= "   {$item->quantity}x Rp" . number_format($item->harga, 0, ',', '.') . " = Rp" . number_format($item->subtotal, 0, ',', '.') . "\n";
+        if ($pesanan->metode_pengiriman === 'dikirim') {
+            $message .= "Metode   : *Dikirim";
+            if ($pesanan->kurir) {
+                $message .= " (" . strtoupper($pesanan->kurir) . ")";
+            }
+            $message .= "*\n\n";
+            $message .= "Pesanan sedang kami siapkan dan akan kami kirimkan\n";
+            $message .= "setelah proses pengemasan selesai.\n\n";
+            $message .= "Nomor resi akan kami informasikan setelah pengiriman.\n\n";
+        } else {
+            $message .= "Metode   : *Ambil di toko*\n\n";
+            $message .= "Pesanan sedang kami siapkan.\n";
+            $message .= "Kami akan mengabari kakak kembali jika sudah siap diambil.\n\n";
         }
         
-        $message .= "\n*Total: Rp" . number_format($pesanan->total_harga, 0, ',', '.') . "*\n\n";
-        $message .= "Pesanan Anda sedang diproses. Kami akan menghubungi Anda segera.\n\n";
-        $message .= "Terima kasih,\n";
-        $message .= $toko->nama_toko ?? 'Toko Kami';
+        $message .= "Terima kasih 🙏";
         
         return $message;
     }
@@ -105,12 +135,12 @@ class PesananController extends Controller
         $user = Auth::user();
         $toko = $user->toko;
         
-        $message = "Halo {$pesanan->nama_lengkap}, mohon maaf pesanan Anda tidak dapat diproses.\n\n";
-        $message .= "ID Pesanan: *{$pesanan->order_id}*\n\n";
-        $message .= "Alasan: Stok tidak tersedia / Toko sedang tutup\n\n";
-        $message .= "Mohon maaf atas ketidaknyamanannya.\n\n";
-        $message .= "Terima kasih,\n";
-        $message .= $toko->nama_toko ?? 'Toko Kami';
+        $message = "Halo kak 👋\n\n";
+        $message .= "Mohon maaf, pesanan dengan ID *{$pesanan->order_id}* terpaksa kami *batalkan*.\n\n";
+        $message .= "Alasannya karena *stok produk saat ini tidak tersedia*.\n\n";
+        $message .= "Kami mohon maaf atas ketidaknyamanannya.\n";
+        $message .= "Silakan hubungi kami jika ingin memesan produk lain.\n\n";
+        $message .= "Terima kasih atas pengertiannya 🙏";
         
         return $message;
     }
